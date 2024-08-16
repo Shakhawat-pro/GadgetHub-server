@@ -25,15 +25,56 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    client.connect();
 
     const productCollection = client.db('GadgetHub').collection('product')
 
-    app.get('/product', async(req, res)=>{
-        const result = await productCollection.find().toArray()
-        res.send(result)
-    })
+    // app.get('/product', async(req, res) =>{
+    //     const result = await productCollection.find().toArray()
+    //     res.send(result)
+    // })
 
+    app.get('/product', async (req, res) => {
+            const { brand, category, priceMin, priceMax, search, sort  } = req.query;
+    
+            let query = {};
+            let sortOption = {};
+
+    
+            if (brand) {
+                query.brand = brand;
+            }
+    
+            if (category) {
+                query.category = category;
+            }
+    
+            if (priceMin || priceMax) {
+                query.price = {};
+                if (priceMin) query.price.$gte = parseFloat(priceMin);
+                if (priceMax) query.price.$lte = parseFloat(priceMax);
+            }
+    
+            if (search) {
+                query.name = { $regex: search, $options: 'i' };
+            }
+            console.log("filter",sortOption);
+            console.log("sort",sort);
+
+            if (sort === 'priceLowHigh') {
+                sortOption.price = 1;
+            } else if (sort === 'priceHighLow') {
+                sortOption.price = -1;
+            } else if (sort === 'dateNewest') {
+                sortOption.createdAt  = -1;
+            }
+        
+            
+    
+            const result = await productCollection.find(query).sort(sortOption).toArray();
+            res.send(result);
+
+    });
 
   } finally {
     // Ensures that the client will close when you finish/error
