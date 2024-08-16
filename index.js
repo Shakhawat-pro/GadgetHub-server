@@ -35,46 +35,56 @@ async function run() {
     // })
 
     app.get('/product', async (req, res) => {
-            const { brand, category, priceMin, priceMax, search, sort  } = req.query;
+        const { brand, category, priceMin, priceMax, search, sort, page , limit  } = req.query;
     
-            let query = {};
-            let sortOption = {};
-
+        let query = {};
+        let sortOption = {};
     
-            if (brand) {
-                query.brand = brand;
-            }
+        // Filter products based on brand, category, price, and search
+        if (brand) {
+            query.brand = brand;
+        }
     
-            if (category) {
-                query.category = category;
-            }
+        if (category) {
+            query.category = category;
+        }
     
-            if (priceMin || priceMax) {
-                query.price = {};
-                if (priceMin) query.price.$gte = parseFloat(priceMin);
-                if (priceMax) query.price.$lte = parseFloat(priceMax);
-            }
+        if (priceMin || priceMax) {
+            query.price = {};
+            if (priceMin) query.price.$gte = parseFloat(priceMin);
+            if (priceMax) query.price.$lte = parseFloat(priceMax);
+        }
     
-            if (search) {
-                query.name = { $regex: search, $options: 'i' };
-            }
-            console.log("filter",sortOption);
-            console.log("sort",sort);
-
-            if (sort === 'priceLowHigh') {
-                sortOption.price = 1;
-            } else if (sort === 'priceHighLow') {
-                sortOption.price = -1;
-            } else if (sort === 'dateNewest') {
-                sortOption.createdAt  = -1;
-            }
-        
-            
+        if (search) {
+            query.name = { $regex: search, $options: 'i' };
+        }
     
-            const result = await productCollection.find(query).sort(sortOption).toArray();
-            res.send(result);
-
+        if (sort === 'priceLowHigh') {
+            sortOption.price = 1;
+        } else if (sort === 'priceHighLow') {
+            sortOption.price = -1;
+        } else if (sort === 'dateNewest') {
+            sortOption.createdAt = -1;
+        }
+    
+        // Calculate pagination values
+        const currentPage = parseInt(page) || 1;
+        const itemsPerPage = parseInt(limit) || 10;
+        const skip = (currentPage - 1) * itemsPerPage;
+    
+        // Get the total number of products matching the query
+        const totalProducts = await productCollection.countDocuments(query);
+    
+        // Get the products with pagination and sorting applied
+        const products = await productCollection.find(query).sort(sortOption).skip(skip).limit(itemsPerPage).toArray();
+    
+        // Calculate the total number of pages
+        const totalPages = Math.ceil(totalProducts / itemsPerPage);
+    
+        res.send({products, totalPages, currentPage
+        });
     });
+    
 
   } finally {
     // Ensures that the client will close when you finish/error
